@@ -1,139 +1,190 @@
-import * as React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
-import Image from "@crave/farmblocks-image";
-import Text from "@crave/farmblocks-text";
+import debounce from "lodash.debounce";
+import { SmChevronRight, SmChevronLeft } from "@crave/farmblocks-icon";
+import {
+  Container,
+  Wrapper,
+  Content,
+  ButtonContainer,
+  ArrowButton,
+} from "./styledComponents/Carousel";
 
-import Container from "./styledComponents/Carousel";
+import Dots from "./components/Dots";
+import useTouch from "./hooks/useTouch";
 
-const defaultConfig = {
-  width: 656,
-  height: 328,
-  margin: 20,
-  fontSize: 88,
-  displayTime: 4,
-  transitionTime: 2,
-  border: "4px solid rgba(255, 255, 255, 0.56)",
-  borderRadius: "16px",
-};
+function Carousel(
+  {
+    qtyOfSlidesPerSet,
+    infiniteLoop,
+    children,
+    leftButtonProps,
+    rightButtonProps,
+  },
+  ...props
+) {
+  const CAROUSEL_DELAY = 300;
 
-class Carousel extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      activeItem: 0,
-    };
+  const displayNumber =
+    qtyOfSlidesPerSet < children.length ? qtyOfSlidesPerSet : children.length;
+
+  const [dotIndex, setDotIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(
+    infiniteLoop && displayNumber < children.length ? displayNumber : 0,
+  );
+
+  useEffect(() => {
+    if (infiniteLoop) setCurrentIndex(dotIndex + displayNumber);
+    else if (currentIndex > children.length - qtyOfSlidesPerSet)
+      setCurrentIndex(children.length - qtyOfSlidesPerSet);
+  }, [displayNumber]);
+
+  const totalOfCards = children.length;
+  const isRepeating = useMemo(
+    () => infiniteLoop && children.length > displayNumber,
+    [children, infiniteLoop, displayNumber],
+  );
+
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
+
+  useEffect(() => {
+    if (isRepeating) {
+      if (currentIndex === displayNumber || currentIndex === totalOfCards) {
+        setTransitionEnabled(true);
+      }
+    }
+  }, [currentIndex, isRepeating, displayNumber, totalOfCards]);
+
+  function handleDotClick(index) {
+    setDotIndex(index);
+    setCurrentIndex(index + displayNumber);
   }
 
-  componentDidMount = () => {
-    this.setInterval();
-  };
+  const nextSlide = debounce(() => {
+    if (dotIndex < totalOfCards - 1) setDotIndex((prevState) => prevState + 1);
+    else if (isRepeating && dotIndex === totalOfCards - 1) {
+      setDotIndex(0);
+    }
+    const result = totalOfCards - displayNumber;
 
-  componentDidUpdate(prevProps) {
-    if (prevProps.imageSet !== this.props.imageSet) {
-      this.setState({ activeItem: 0 });
-      this.setInterval();
+    if (isRepeating || currentIndex < result) {
+      setCurrentIndex((prevState) => prevState + 1);
+    }
+  }, CAROUSEL_DELAY);
+
+  const prevSlide = debounce(() => {
+    if (dotIndex === 0) setDotIndex(totalOfCards - 1);
+    else setDotIndex((prevState) => prevState - 1);
+
+    if (isRepeating || currentIndex > 0) {
+      setCurrentIndex((prevState) => prevState - 1);
+    }
+  }, CAROUSEL_DELAY);
+
+  const { handleTouchStart, handleTouchMove } = useTouch({
+    nextSlide,
+    prevSlide,
+  });
+
+  function handleTransitionEnd() {
+    if (isRepeating) {
+      if (currentIndex === 0) {
+        setTransitionEnabled(false);
+        setCurrentIndex(totalOfCards);
+      } else if (currentIndex === totalOfCards + displayNumber) {
+        setTransitionEnabled(false);
+        setCurrentIndex(displayNumber);
+      }
     }
   }
 
-  componentWillUnmount = () => {
-    this.clearInterval();
-  };
-
-  nextItem = () => {
-    const activeItem = this.state.activeItem + 1; // eslint-disable-line
-    if (activeItem === this.props.imageSet.length) {
-      this.clearInterval();
-      this.props.onEnd();
-      return;
+  const renderExtraPrev = useMemo(() => {
+    const output = [];
+    for (let index = 0; index < displayNumber; index += 1) {
+      output.push(children[totalOfCards - 1 - index]);
     }
-    this.props.onChange(activeItem);
-    this.setState({ activeItem });
-  };
+    output.reverse();
+    return output;
+  }, [children, totalOfCards, displayNumber]);
 
-  setInterval = () => {
-    if (this.transitionId) {
-      return;
+  const renderExtraNext = useMemo(() => {
+    const output = [];
+    for (let index = 0; index < displayNumber; index += 1) {
+      output.push(children[index]);
     }
+    return output;
+  }, [children, displayNumber]);
 
-    const { displayTime } = { ...defaultConfig, ...this.props.itemConfig };
+  const showLeftArrow = isRepeating || currentIndex > 0;
+  const showRightArrow =
+    isRepeating || currentIndex < totalOfCards - displayNumber;
+  const renderExtras = totalOfCards > displayNumber && isRepeating;
 
-    this.transitionId = window.setInterval(this.nextItem, displayTime * 1000);
-  };
-
-  clearInterval = () => {
-    if (this.transitionId) {
-      window.clearInterval(this.transitionId);
-      delete this.transitionId;
-    }
-  };
-
-  render() {
-    const { imageSet, itemConfig } = this.props;
-    const configProps = { ...defaultConfig, ...itemConfig };
-
-    return (
-      <Container
-        activeItem={this.state.activeItem}
-        itemConfig={configProps}
-        shouldScale={this.props.scale}
-        className={this.props.className}
-      >
-        <ul>
-          {imageSet.map((item, index) => {
-            const isActive = index === this.state.activeItem;
-            return (
-              <li key={index} className={isActive ? "active" : ""}>
-                <Image
-                  className="image"
-                  src={item.image}
-                  width="100%"
-                  height="100%"
-                  borderRadius={configProps.borderRadius}
-                  css={{
-                    border: configProps.border,
-                  }}
-                />
-                <Text
-                  className="itemLabel"
-                  size={configProps.fontSize}
-                  align="center"
-                  fontWeight="title"
-                >
-                  {item.name}
-                </Text>
-              </li>
-            );
-          })}
-        </ul>
-      </Container>
-    );
-  }
+  return (
+    <Container {...props}>
+      <Wrapper>
+        <ButtonContainer direction="left">
+          {showLeftArrow && (
+            <ArrowButton
+              data-testid="left-arrow"
+              icon={<SmChevronLeft size={24} />}
+              {...leftButtonProps}
+              onClick={(event) => {
+                prevSlide();
+                leftButtonProps?.onClick?.(event);
+              }}
+            />
+          )}
+        </ButtonContainer>
+        <div style={{ overflow: "hidden" }}>
+          <Content
+            currentIndex={currentIndex}
+            displayNumber={displayNumber}
+            transitionEnabled={transitionEnabled}
+            onTransitionEnd={handleTransitionEnd}
+            onTouchStart={(event) => handleTouchStart(event)}
+            onTouchMove={(event) => handleTouchMove(event)}
+          >
+            {renderExtras && renderExtraPrev}
+            {children}
+            {renderExtras && renderExtraNext}
+          </Content>
+        </div>
+        <ButtonContainer direction="right">
+          {showRightArrow && (
+            <ArrowButton
+              data-testid="right-arrow"
+              icon={<SmChevronRight size={24} />}
+              {...rightButtonProps}
+              onClick={(event) => {
+                nextSlide();
+                rightButtonProps?.onClick?.(event);
+              }}
+            />
+          )}
+        </ButtonContainer>
+      </Wrapper>
+      {isRepeating && (
+        <Dots
+          slides={children}
+          handleClick={handleDotClick}
+          selectedDot={dotIndex}
+        />
+      )}
+    </Container>
+  );
 }
 
 Carousel.propTypes = {
-  imageSet: PropTypes.arrayOf(
-    PropTypes.shape({ image: PropTypes.string, name: PropTypes.string }),
-  ),
-  onChange: PropTypes.func,
-  onEnd: PropTypes.func,
-  scale: PropTypes.bool,
-  itemConfig: PropTypes.shape({
-    width: PropTypes.number,
-    height: PropTypes.number,
-    margin: PropTypes.number,
-    fontSize: PropTypes.number,
-    displayTime: PropTypes.number,
-    transitionTime: PropTypes.number,
-    border: PropTypes.string,
-  }),
-  className: PropTypes.string,
+  children: PropTypes.node.isRequired,
+  qtyOfSlidesPerSet: PropTypes.number,
+  infiniteLoop: PropTypes.bool,
+  leftButtonProps: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
+  rightButtonProps: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
 };
-
 Carousel.defaultProps = {
-  itemConfig: defaultConfig,
-  scale: true,
-  onChange: () => null,
-  onEnd: () => null,
+  infiniteLoop: false,
+  qtyOfSlidesPerSet: 1,
 };
 
 export default Carousel;

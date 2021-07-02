@@ -1,101 +1,159 @@
 import React from "react";
 import { storiesOf } from "@storybook/react";
-import { action } from "@storybook/addon-actions";
 
-import Carousel from ".";
+import { MdArrowLeft, MdArrowRight } from "@crave/farmblocks-icon";
+
+import { Carousel, Slide, useResizeWindow } from ".";
 
 const imageSet = [
-  {
-    image: "https://picsum.photos/640/?image=1080",
-    name: "Organic Pepper",
-  },
-  {
-    image: "https://picsum.photos/640/?image=824",
-    name: "Tomato",
-  },
-  {
-    image: "https://picsum.photos/640/?image=889",
-    name: "Grapefruit",
-  },
-  {
-    image: "https://picsum.photos/640/?image=674",
-    name: "Tomato",
-  },
-  {
-    image: "https://picsum.photos/640/?image=292",
-    name: "Tomato",
-  },
-  {
-    image: "https://picsum.photos/640/?image=517",
-    name: "Tomato",
-  },
-  {
-    image: "https://picsum.photos/640/?image=627",
-    name: "Tomato",
-  },
-  {
-    image: "https://picsum.photos/640/?image=75",
-    name: "Tomato",
-  },
-  {
-    image: "https://picsum.photos/640/?image=766",
-    name: "Romaine Lettuce",
-  },
+  <img src="https://picsum.photos/640/?image=1080" alt="Organic Pepper" />,
+  <img src="https://picsum.photos/640/?image=824" alt="Tomato" />,
+  <img src="https://picsum.photos/640/?image=889" alt="Grapefruit" />,
+  <img src="https://picsum.photos/640/?image=674" alt="Tomato" />,
+  <img src="https://picsum.photos/640/?image=292" alt="Tomato" />,
+  <img src="https://picsum.photos/640/?image=517" alt="Tomato" />,
+  <img src="https://picsum.photos/640/?image=627" alt="Tomato" />,
+  <img src="https://picsum.photos/640/?image=75" alt="Tomato" />,
+  <img src="https://picsum.photos/640/?image=766" alt="Romaine Lettuce" />,
 ];
 
+const leftButtonStyle = {
+  icon: <MdArrowLeft size={22} />,
+  style: {
+    borderRadius: "0px",
+  },
+};
+const rightButtonStyle = {
+  icon: <MdArrowRight size={22} />,
+  style: {
+    borderRadius: "0px",
+  },
+};
+
 storiesOf("Carousel", module)
-  .add("1 photo", () => <Carousel imageSet={imageSet.slice(0, 1)} />)
-
-  .add("1 photo with onEnd", () => (
-    <Carousel onEnd={action("slideshow end")} imageSet={imageSet.slice(0, 1)} />
-  ))
-
-  .add("2 photos", () => <Carousel imageSet={imageSet.slice(0, 2)} />)
-
-  .add("all photos", () => <Carousel imageSet={imageSet} />)
-  .add("no scale", () => <Carousel imageSet={imageSet} scale={false} />)
-
-  .add("all photos with onChange and onEnd", () => (
-    <Carousel
-      onChange={action("photo changed")}
-      onEnd={action("end")}
-      imageSet={imageSet}
-    />
-  ))
-  .add("partial custom config", () => (
-    <Carousel
-      itemConfig={{
-        displayTime: 6.5,
-        transitionTime: 2.5,
+  .add("1 photo", () => (
+    <div
+      style={{
+        marginLeft: "auto",
+        marginRight: "auto",
+        marginTop: 64,
       }}
-      imageSet={imageSet}
-    />
+    >
+      <Carousel>
+        <Slide>{imageSet[0]}</Slide>
+      </Carousel>
+    </div>
   ))
-  .add("custom config", () => (
-    <Carousel
-      itemConfig={{
-        width: 200,
-        height: 200,
-        margin: 2,
-        displayTime: 2,
-        transitionTime: 0.5,
-        border: { radius: "100%", width: "4px", color: "green" },
+
+  .add("2 photos", () => (
+    <div
+      style={{
+        marginLeft: "auto",
+        marginRight: "auto",
+        marginTop: 64,
       }}
-      imageSet={imageSet}
-    />
+    >
+      <Carousel qtyOfSlidesPerSet={2}>
+        <Slide>{imageSet[0]}</Slide>
+        <Slide>{imageSet[1]}</Slide>
+      </Carousel>
+    </div>
   ))
-  .add("extended style", () => (
-    <Carousel
-      css="
-        background: lavender;
-        .image {
-          background-size: 50%;
-          background-repeat: repeat;
-        }
-        .itemLabel {
-          color: red;
-        }
-      "
-      imageSet={imageSet}
-    />
+
+  .add("all photos", () => {
+    const AllPhotos = () => {
+      const { displayNumber } = useResizeWindow({
+        breakpoints: [
+          {
+            width: 768,
+            slidesToShow: 1,
+          },
+          {
+            width: 1200,
+            slidesToShow: 3,
+          },
+          {
+            width: 1000,
+            slidesToShow: 2,
+          },
+        ],
+        qtyOfSlidesPerSet: 4,
+      });
+      return (
+        <div
+          style={{
+            marginLeft: "auto",
+            marginRight: "auto",
+            marginTop: 64,
+          }}
+        >
+          <Carousel qtyOfSlidesPerSet={displayNumber}>
+            {imageSet.map((value) => (
+              <Slide>{value}</Slide>
+            ))}
+          </Carousel>
+        </div>
+      );
+    };
+
+    return <AllPhotos />;
+  })
+  .add("infinite loop", () => {
+    const InfinitLoop = () => {
+      const { displayNumber } = useResizeWindow({
+        breakpoints: [
+          {
+            width: 768,
+            slidesToShow: 1,
+          },
+          {
+            width: 1200,
+            slidesToShow: 2,
+          },
+        ],
+        infiniteLoop: true,
+        qtyOfSlidesPerSet: 3,
+        numberOfCards: imageSet.length,
+        dotIndex: 0,
+      });
+      return (
+        <div
+          style={{
+            marginLeft: "auto",
+            marginRight: "auto",
+            marginTop: 64,
+          }}
+        >
+          <Carousel infiniteLoop qtyOfSlidesPerSet={displayNumber}>
+            {imageSet.map((value) => (
+              <Slide>{value}</Slide>
+            ))}
+          </Carousel>
+        </div>
+      );
+    };
+
+    return <InfinitLoop />;
+  })
+  .add("Custom carousel", () => (
+    <div
+      style={{
+        marginLeft: "auto",
+        marginRight: "auto",
+        marginTop: 64,
+        width: 800,
+        height: 800,
+      }}
+    >
+      <Carousel
+        infiniteLoop
+        qtyOfSlidesPerSet={2}
+        leftButtonProps={leftButtonStyle}
+        rightButtonProps={rightButtonStyle}
+      >
+        {imageSet.map((value) => (
+          <Slide borderRadius={500}>{value}</Slide>
+        ))}
+      </Carousel>
+    </div>
   ));

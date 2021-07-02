@@ -1,122 +1,89 @@
 import React from "react";
-import renderer from "react-test-renderer";
-import { configure, mount } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
-import Carousel from ".";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import { Carousel, Slide } from ".";
 
 describe("Carousel", () => {
-  configure({ adapter: new Adapter() });
-  jest.useFakeTimers();
+  const imageSet = [
+    <img src="https://picsum.photos/640/?image=1080" alt="Organic Pepper" />,
+    <img src="https://picsum.photos/640/?image=824" alt="Tomato" />,
+    <img src="https://picsum.photos/640/?image=889" alt="Grapefruit" />,
+  ];
 
-  let clearIntervalSpy;
-  let setIntervalSpy;
+  const makeSut = ({ ...props }) => {
+    render(
+      <Carousel {...props}>
+        {imageSet.map((value) => (
+          <Slide>{value}</Slide>
+        ))}
+      </Carousel>,
+    );
+  };
 
-  beforeEach(() => {
-    clearIntervalSpy = jest.spyOn(window, "clearInterval");
-    setIntervalSpy = jest.spyOn(window, "setInterval");
+  it("should render component without arrows and dots", () => {
+    const initialValues = {
+      qtyOfSlidesPerSet: imageSet.length,
+    };
+    makeSut(initialValues);
+
+    expect(screen.queryByTestId("left-arrow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("right-arrow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dots-container")).not.toBeInTheDocument();
+  });
+  it("should render component with arrows", () => {
+    const initialValues = {
+      qtyOfSlidesPerSet: imageSet.length - 1,
+    };
+    makeSut(initialValues);
+
+    // check if proper elements are renderer
+    const rightArrow = screen.queryByTestId("right-arrow");
+
+    expect(screen.queryByTestId("left-arrow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dots-container")).not.toBeInTheDocument();
+    expect(rightArrow).toBeInTheDocument();
+
+    // click o right arrow
+    userEvent.click(rightArrow);
+
+    // check if proper elements are renderer
+    expect(rightArrow).not.toBeInTheDocument();
+    expect(screen.queryByTestId("left-arrow")).toBeInTheDocument();
   });
 
-  afterEach(() => {
-    clearTimeout.mockClear();
-    clearIntervalSpy.mockClear();
-    setIntervalSpy.mockClear();
-  });
+  it("should render component with infinite scroll", () => {
+    const initialValues = {
+      qtyOfSlidesPerSet: 2,
+      infiniteLoop: true,
+    };
+    makeSut(initialValues);
 
-  test("active photo should change after displayTime", () => {
-    const imageSet = [
-      { image: "http://example.com/1.png", name: "1" },
-      { image: "http://example.com/2.png", name: "2" },
-      { image: "http://example.com/3.png", name: "3" },
-    ];
-    const component = renderer.create(<Carousel imageSet={imageSet} />);
-    const state = component.getInstance().state;
-    expect(state.activeItem).toBe(0);
+    // check if proper elements are renderer
+    const rightArrow = screen.queryByTestId("right-arrow");
+    const leftArrow = screen.queryByTestId("left-arrow");
+    const dotsContainer = screen.queryByTestId("dots-container");
 
-    jest.runOnlyPendingTimers();
+    expect(dotsContainer.children[0].classList.contains("active")).toBe(true);
+    expect(rightArrow).toBeInTheDocument();
+    expect(leftArrow).toBeInTheDocument();
 
-    const finalState = component.getInstance().state;
-    expect(finalState.activeItem).toBe(1);
-  });
+    // click on last Dot
+    userEvent.click(dotsContainer.children[2]);
 
-  test("onEnd event handler should be called after the last photo", () => {
-    const imageSet = [
-      { image: "http://example.com/1.png", name: "1" },
-      { image: "http://example.com/2.png", name: "2" },
-      { image: "http://example.com/3.png", name: "3" },
-    ];
-    const onEndMock = jest.fn();
-    renderer.create(<Carousel imageSet={imageSet} onEnd={onEndMock} />);
-    jest.runAllTimers();
+    // check if active dot has changed and arrows are still in screen
+    expect(rightArrow).toBeInTheDocument();
+    expect(leftArrow).toBeInTheDocument();
+    expect(dotsContainer.children[0].classList.contains("active")).toBe(false);
+    expect(dotsContainer.children[2].classList.contains("active")).toBe(true);
 
-    expect(onEndMock).toBeCalled();
-  });
+    // click on next
+    userEvent.click(rightArrow);
 
-  test("setInterval should be called on mount and not called if there's a transitionId", () => {
-    const imageSet = [{ image: "http://example.com/1.png", name: "1" }];
-    const component = renderer.create(<Carousel imageSet={imageSet} />);
-
-    const cb = component.getInstance().nextItem;
-
-    expect(setIntervalSpy).toHaveBeenCalledWith(cb, 4000);
-    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
-
-    // set interval should not be called again
-    component.getInstance().setInterval();
-    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
-  });
-
-  test("clearInterval should be called on unmount", () => {
-    const imageSet = [
-      { image: "http://example.com/1.png", name: "1" },
-      { image: "http://example.com/2.png", name: "2" },
-      { image: "http://example.com/3.png", name: "3" },
-    ];
-    const component = renderer.create(<Carousel imageSet={imageSet} />);
-
-    const transitionId = component.getInstance().transitionId;
-
-    expect(transitionId).toBeDefined();
-    component.unmount();
-    expect(clearIntervalSpy).toHaveBeenCalledWith(transitionId);
-  });
-
-  test("clearInterval should not be called if there is no transitionId on unmount", () => {
-    const imageSet = [{ image: "http://example.com/1.png", name: "1" }];
-    const component = renderer.create(<Carousel imageSet={imageSet} />);
-
-    delete component.getInstance().transitionId;
-
-    component.unmount();
-    expect(clearIntervalSpy).not.toHaveBeenCalled();
-  });
-
-  describe("Receiving new props", () => {
-    const imageSet = [{ image: "http://example.com/1.png", name: "1" }];
-    let component, setStateSpy, setIntervSpy;
-
-    beforeEach(() => {
-      component = mount(<Carousel imageSet={imageSet} />);
-      setStateSpy = jest.spyOn(component.instance(), "setState");
-      setIntervSpy = jest.spyOn(component.instance(), "setInterval");
-    });
-
-    afterEach(() => {
-      setStateSpy.mockClear();
-      setIntervSpy.mockClear();
-    });
-
-    test("activeItem should be set to 0 when imageSet changes", () => {
-      component.setProps({ imageSet: [] });
-
-      expect(setStateSpy).toHaveBeenCalledWith({ activeItem: 0 });
-      expect(setIntervSpy).toHaveBeenCalledTimes(1);
-    });
-
-    test("state should not change when imageSet doesn't change", () => {
-      component.setProps({ imageSet });
-
-      expect(setStateSpy).not.toHaveBeenCalled();
-      expect(setIntervSpy).not.toHaveBeenCalled();
-    });
+    // check if active dot has go back to first position
+    expect(rightArrow).toBeInTheDocument();
+    expect(leftArrow).toBeInTheDocument();
+    expect(dotsContainer.children[2].classList.contains("active")).toBe(false);
+    expect(dotsContainer.children[0].classList.contains("active")).toBe(true);
   });
 });
